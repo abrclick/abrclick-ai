@@ -6,9 +6,9 @@ Codex, Windsurf, Copilot, Cline, …) at this package and it can create projects
 apps, provision databases, link app↔DB, manage env vars, custom domains, DNS, backups,
 metrics, alerts, and team members — all on your Abrclick account, straight from chat.
 
-It is a thin, safe wrapper over [`@abrclick/sdk`](../abrclick-sdk) and speaks the
-**Model Context Protocol (MCP)** over **stdio**, so it plugs into every MCP client the
-same way.
+It is a thin, safe wrapper over [`@abrclick/sdk`](https://www.npmjs.com/package/@abrclick/sdk)
+and speaks the **Model Context Protocol (MCP)** over **stdio**, so it plugs into every MCP
+client the same way.
 
 > **What is this, exactly?** A local program your AI tool launches. Your AI never talks
 > to Abrclick directly — it calls the `abrclick_*` tools this package exposes, which call
@@ -232,7 +232,7 @@ foot-guns:
 ## Development
 
 ```bash
-npm install        # links ../abrclick-sdk via file:
+npm install        # pulls @abrclick/sdk from the registry
 npm run type-check # tsc --noEmit
 npm run build      # tsc → dist/
 npm start          # runs dist/index.js (needs ABRCLICK_API_KEY)
