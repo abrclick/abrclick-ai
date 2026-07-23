@@ -1,0 +1,70 @@
+{
+  "name": "@abrclick/ai",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Give your AI coding tool full control of Abrclick — deploy apps, provision databases, manage domains, DNS, backups, and more (PaaS + DBaaS for Iran). MCP server.",
+  "private": false,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Abrclick <support@abrclick.ir> (https://abrclick.ir)",
+  "homepage": "https://abrclick.ir",
+  "bugs": {
+    "url": "https://github.com/abrclick/abrclick-ai/issues"
+  },
+  "keywords": [
+    "abrclick",
+    "ai",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "sdk",
+    "paas",
+    "dbaas",
+    "deploy",
+    "claude",
+    "cursor",
+    "codex",
+    "copilot"
+  ],
+  "bin": {
+    "abrclick-ai": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abrclick/abrclick-ai.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build",
+    "release:first": "git tag v$npm_package_version && git push origin main --follow-tags",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags"
+  },
+  "dependencies": {
+    "@abrclick/sdk": "^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "package.json",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3"
+  }
+}
