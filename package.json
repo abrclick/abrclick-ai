@@ -46,7 +46,7 @@
     "type-check": "tsc --noEmit",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
-    "release:first": "git tag v$npm_package_version && git push origin main --follow-tags",
+    "release:first": "git tag -a v$npm_package_version -m v$npm_package_version && git push origin main --follow-tags",
     "release:patch": "npm version patch && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",
     "release:major": "npm version major && git push --follow-tags"
