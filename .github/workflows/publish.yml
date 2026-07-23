@@ -1,0 +1,44 @@
+name: Publish
+
+# Publishes @abrclick/ai to the public npm registry when a v* tag is pushed.
+# Gate: typecheck + build + tag-matches-version must pass before publish runs.
+# Requires repo secret NPM_TOKEN (an npm automation token with publish rights).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # Fail early if the git tag doesn't match package.json's version,
+      # so we never publish a mislabelled release.
+      - name: Verify tag matches package version
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package version $PKG_VERSION"
+            exit 1
+          fi
+
+      - run: npm run type-check
+      - run: npm run build
+
+      # No --provenance: repo is private, and npm provenance requires a public
+      # repo (it writes a public Sigstore attestation referencing repo+commit).
+      # Ships dist/ + skills/ per package.json "files".
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

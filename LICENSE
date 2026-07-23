@@ -1,0 +1,33 @@
+Copyright (c) 2026 Abrclick (ابرکلیک). All rights reserved.
+
+PROPRIETARY LICENSE
+
+This is proprietary software. The source code is made publicly viewable for
+transparency, but it is NOT open-source and no rights are granted beyond those
+stated below. The following terms apply:
+
+1. Grant. You are granted a non-exclusive, non-transferable, revocable license
+   to install and use the published "@abrclick/sdk" package from the npm
+   registry solely to build software that integrates with the Abrclick service.
+
+2. Restrictions. You may NOT, without prior written permission from Abrclick:
+   (a) reverse-engineer, decompile, or disassemble the package;
+   (b) copy, modify, adapt, translate, or create derivative works, in whole or
+       in part;
+   (c) redistribute, sublicense, sell, rent, lease, or otherwise transfer the
+       package;
+   (d) publish the package or any derivative under any other name or registry;
+   (e) use it to build or operate a competing product or service; or
+   (f) remove or alter this notice.
+
+3. No trademark rights. This license grants no rights to the "Abrclick" /
+   "ابرکلیک" names, logos, or trademarks.
+
+4. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO
+   EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+   SOFTWARE OR ITS USE.
+
+For licensing inquiries: support@abrclick.ir
