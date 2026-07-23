@@ -1290,6 +1290,738 @@ const deleteTask: ToolDefinition = {
   },
 };
 
+// ---- Object Storage (buckets) ----
+const listAllBuckets: ToolDefinition = {
+  name: "abrclick_list_all_buckets",
+  description: "List all object-storage buckets across every project for the authenticated user",
+  inputSchema: {},
+  handler: async (client) => client.getAllBuckets(),
+};
+
+const listBuckets: ToolDefinition = {
+  name: "abrclick_list_buckets",
+  description: "List object-storage (S3) buckets in a project",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getBuckets(args.project_id as string),
+};
+
+const createBucket: ToolDefinition = {
+  name: "abrclick_create_bucket",
+  description: "Create an S3-compatible object-storage bucket. sizeGb must be a fixed step (10GB free).",
+  inputSchema: {
+    project_id: z.string(),
+    name: z.string().describe("3-63 lowercase alphanumerics or hyphens"),
+    sizeGb: z.number().int().min(10).max(250),
+    region: z.string().optional(),
+    isPublic: z.boolean().optional().describe("Allow anonymous read"),
+    objectLockEnabled: z.boolean().optional().describe("Create-time only; also enables versioning"),
+  },
+  handler: async (client, args) => {
+    const { project_id, ...input } = args;
+    return client.createBucket(project_id as string, input as never);
+  },
+};
+
+const getBucket: ToolDefinition = {
+  name: "abrclick_get_bucket",
+  description: "Get an object-storage bucket by ID",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.getBucket(args.bucket_id as string),
+};
+
+const updateBucket: ToolDefinition = {
+  name: "abrclick_update_bucket",
+  description: "Update a bucket (resize sizeGb — grow-only steps — or toggle public read)",
+  inputSchema: {
+    bucket_id: z.string(),
+    sizeGb: z.number().int().min(10).max(250).optional(),
+    isPublic: z.boolean().optional(),
+  },
+  handler: async (client, args) => {
+    const { bucket_id, ...input } = args;
+    return client.updateBucket(bucket_id as string, input as never);
+  },
+};
+
+const getBucketCredentials: ToolDefinition = {
+  name: "abrclick_get_bucket_credentials",
+  description: "Get S3 access credentials for a bucket (SECRET — endpoint, access key, secret key)",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.getBucketCredentials(args.bucket_id as string),
+};
+
+const rotateBucketCredentials: ToolDefinition = {
+  name: "abrclick_rotate_bucket_credentials",
+  description: "Rotate a bucket's S3 access keys (invalidates the old secret key immediately)",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.rotateBucketCredentials(args.bucket_id as string),
+};
+
+const deleteBucket: ToolDefinition = {
+  name: "abrclick_delete_bucket",
+  description: "Delete a bucket (DESTRUCTIVE — removes the bucket and all its objects)",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteBucket(args.bucket_id as string);
+    return { success: true };
+  },
+};
+
+const listBucketObjects: ToolDefinition = {
+  name: "abrclick_list_bucket_objects",
+  description: "List objects in a bucket (optionally filtered by prefix; delimiter for folder view)",
+  inputSchema: {
+    bucket_id: z.string(),
+    prefix: z.string().optional(),
+    delimiter: z.string().optional(),
+    token: z.string().optional().describe("Continuation token for the next page"),
+  },
+  handler: async (client, args) => {
+    const { bucket_id, ...params } = args;
+    return client.listBucketObjects(bucket_id as string, params as never);
+  },
+};
+
+const getBucketObjectDownloadUrl: ToolDefinition = {
+  name: "abrclick_get_bucket_object_download_url",
+  description: "Get a presigned download URL for a single object by key",
+  inputSchema: { bucket_id: z.string(), key: z.string() },
+  handler: async (client, args) => client.getBucketObjectDownloadUrl(args.bucket_id as string, args.key as string),
+};
+
+const deleteBucketObject: ToolDefinition = {
+  name: "abrclick_delete_bucket_object",
+  description: "Delete a single object from a bucket by key (DESTRUCTIVE)",
+  inputSchema: { bucket_id: z.string(), key: z.string() },
+  handler: async (client, args) => {
+    await client.deleteBucketObject(args.bucket_id as string, args.key as string);
+    return { success: true };
+  },
+};
+
+const createBucketFolder: ToolDefinition = {
+  name: "abrclick_create_bucket_folder",
+  description: "Create an empty folder (zero-byte prefix marker) in a bucket",
+  inputSchema: {
+    bucket_id: z.string(),
+    name: z.string().describe("Folder name (no '/')"),
+    prefix: z.string().optional().describe("Parent prefix to create the folder under"),
+  },
+  handler: async (client, args) =>
+    client.createBucketFolder(args.bucket_id as string, args.name as string, args.prefix as string | undefined),
+};
+
+const getBucketCors: ToolDefinition = {
+  name: "abrclick_get_bucket_cors",
+  description: "Get a bucket's CORS rules",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.getBucketCors(args.bucket_id as string),
+};
+
+const putBucketCors: ToolDefinition = {
+  name: "abrclick_put_bucket_cors",
+  description: "Replace a bucket's CORS rules (max 100 rules)",
+  inputSchema: {
+    bucket_id: z.string(),
+    rules: z
+      .array(
+        z.object({
+          allowedOrigins: z.array(z.string()),
+          allowedMethods: z.array(z.enum(["GET", "PUT", "POST", "DELETE", "HEAD"])),
+          allowedHeaders: z.array(z.string()).optional(),
+          exposeHeaders: z.array(z.string()).optional(),
+          maxAgeSeconds: z.number().int().min(0).optional(),
+        }),
+      )
+      .describe("CORS rules"),
+  },
+  handler: async (client, args) => client.putBucketCors(args.bucket_id as string, args.rules as never),
+};
+
+const deleteBucketCors: ToolDefinition = {
+  name: "abrclick_delete_bucket_cors",
+  description: "Delete all CORS rules from a bucket",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteBucketCors(args.bucket_id as string);
+    return { success: true };
+  },
+};
+
+const getBucketVersioning: ToolDefinition = {
+  name: "abrclick_get_bucket_versioning",
+  description: "Get a bucket's versioning state",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.getBucketVersioning(args.bucket_id as string),
+};
+
+const putBucketVersioning: ToolDefinition = {
+  name: "abrclick_put_bucket_versioning",
+  description: "Enable or disable object versioning on a bucket",
+  inputSchema: { bucket_id: z.string(), enabled: z.boolean() },
+  handler: async (client, args) => client.putBucketVersioning(args.bucket_id as string, args.enabled as boolean),
+};
+
+const getBucketLifecycle: ToolDefinition = {
+  name: "abrclick_get_bucket_lifecycle",
+  description: "Get a bucket's lifecycle rules",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => client.getBucketLifecycle(args.bucket_id as string),
+};
+
+const putBucketLifecycle: ToolDefinition = {
+  name: "abrclick_put_bucket_lifecycle",
+  description: "Replace a bucket's lifecycle rules (object expiration, noncurrent-version cleanup, multipart abort)",
+  inputSchema: {
+    bucket_id: z.string(),
+    rules: z
+      .array(
+        z.object({
+          id: z.string(),
+          prefix: z.string().optional(),
+          expirationDays: z.number().int().min(1).optional(),
+          noncurrentDays: z.number().int().min(1).optional(),
+          newerNoncurrentVersions: z.number().int().min(0).optional(),
+          abortIncompleteMultipartDays: z.number().int().min(1).optional(),
+          enabled: z.boolean().optional(),
+        }),
+      )
+      .describe("Lifecycle rules"),
+  },
+  handler: async (client, args) => client.putBucketLifecycle(args.bucket_id as string, args.rules as never),
+};
+
+const deleteBucketLifecycle: ToolDefinition = {
+  name: "abrclick_delete_bucket_lifecycle",
+  description: "Delete all lifecycle rules from a bucket",
+  inputSchema: { bucket_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteBucketLifecycle(args.bucket_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Container Registry ----
+const listAllRegistries: ToolDefinition = {
+  name: "abrclick_list_all_registries",
+  description: "List all container registries across every project for the authenticated user",
+  inputSchema: {},
+  handler: async (client) => client.getAllRegistries(),
+};
+
+const listRegistries: ToolDefinition = {
+  name: "abrclick_list_registries",
+  description: "List container (Docker/OCI) registries in a project",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getRegistries(args.project_id as string),
+};
+
+const createRegistry: ToolDefinition = {
+  name: "abrclick_create_registry",
+  description: "Create a private container registry. sizeGb must be a fixed step (1GB free).",
+  inputSchema: {
+    project_id: z.string(),
+    name: z.string().describe("3-63 lowercase alphanumerics or hyphens"),
+    sizeGb: z.number().int().min(1).max(100),
+    isPublic: z.boolean().optional().describe("Allow anonymous image pulls"),
+  },
+  handler: async (client, args) => {
+    const { project_id, ...input } = args;
+    return client.createRegistry(project_id as string, input as never);
+  },
+};
+
+const getRegistry: ToolDefinition = {
+  name: "abrclick_get_registry",
+  description: "Get a container registry by ID",
+  inputSchema: { registry_id: z.string() },
+  handler: async (client, args) => client.getRegistry(args.registry_id as string),
+};
+
+const updateRegistry: ToolDefinition = {
+  name: "abrclick_update_registry",
+  description: "Update a registry (resize sizeGb — grow-only steps — or toggle public pulls)",
+  inputSchema: {
+    registry_id: z.string(),
+    sizeGb: z.number().int().min(1).max(100).optional(),
+    isPublic: z.boolean().optional(),
+  },
+  handler: async (client, args) => {
+    const { registry_id, ...input } = args;
+    return client.updateRegistry(registry_id as string, input as never);
+  },
+};
+
+const getRegistryCredentials: ToolDefinition = {
+  name: "abrclick_get_registry_credentials",
+  description: "Get docker-login credentials for a registry (SECRET — registry URL, username, password)",
+  inputSchema: { registry_id: z.string() },
+  handler: async (client, args) => client.getRegistryCredentials(args.registry_id as string),
+};
+
+const rotateRegistryCredentials: ToolDefinition = {
+  name: "abrclick_rotate_registry_credentials",
+  description: "Rotate a registry's password (invalidates the old one immediately)",
+  inputSchema: { registry_id: z.string() },
+  handler: async (client, args) => client.rotateRegistryCredentials(args.registry_id as string),
+};
+
+const listRegistryRepositories: ToolDefinition = {
+  name: "abrclick_list_registry_repositories",
+  description: "List image repositories (and tags) inside a registry",
+  inputSchema: { registry_id: z.string() },
+  handler: async (client, args) => client.getRegistryRepositories(args.registry_id as string),
+};
+
+const deleteRegistry: ToolDefinition = {
+  name: "abrclick_delete_registry",
+  description: "Delete a container registry (DESTRUCTIVE — removes all images)",
+  inputSchema: { registry_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteRegistry(args.registry_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Functions (FaaS) ----
+const listFunctions: ToolDefinition = {
+  name: "abrclick_list_functions",
+  description: "List serverless functions in a project",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getFunctions(args.project_id as string),
+};
+
+const createFunction: ToolDefinition = {
+  name: "abrclick_create_function",
+  description: "Create a serverless function. Pass inline `code` (Node handler, max ~256KB) or upload later.",
+  inputSchema: {
+    project_id: z.string(),
+    name: z.string(),
+    entryFile: z.string().optional().describe("e.g. index.handler"),
+    code: z.string().optional().describe("Inline handler source, max ~256KB"),
+    memoryMb: z.number().int().min(128).max(4096).optional(),
+    timeoutSec: z.number().int().min(1).max(900).optional(),
+  },
+  handler: async (client, args) => {
+    const { project_id, ...input } = args;
+    return client.createFunction(project_id as string, input as never);
+  },
+};
+
+const getFunction: ToolDefinition = {
+  name: "abrclick_get_function",
+  description: "Get a serverless function by ID",
+  inputSchema: { function_id: z.string() },
+  handler: async (client, args) => client.getFunction(args.function_id as string),
+};
+
+const updateFunction: ToolDefinition = {
+  name: "abrclick_update_function",
+  description: "Update a function's name, entry file, memory, or timeout",
+  inputSchema: {
+    function_id: z.string(),
+    name: z.string().optional(),
+    entryFile: z.string().optional(),
+    memoryMb: z.number().int().min(128).max(4096).optional(),
+    timeoutSec: z.number().int().min(1).max(900).optional(),
+  },
+  handler: async (client, args) => {
+    const { function_id, ...input } = args;
+    return client.updateFunction(function_id as string, input as never);
+  },
+};
+
+const deleteFunction: ToolDefinition = {
+  name: "abrclick_delete_function",
+  description: "Delete a serverless function (DESTRUCTIVE)",
+  inputSchema: { function_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteFunction(args.function_id as string);
+    return { success: true };
+  },
+};
+
+const getFunctionSource: ToolDefinition = {
+  name: "abrclick_get_function_source",
+  description: "Get a function's current handler source code",
+  inputSchema: { function_id: z.string() },
+  handler: async (client, args) => client.getFunctionSource(args.function_id as string),
+};
+
+const redeployFunction: ToolDefinition = {
+  name: "abrclick_redeploy_function",
+  description: "Redeploy a function with new inline handler source (max ~256KB)",
+  inputSchema: { function_id: z.string(), code: z.string() },
+  handler: async (client, args) => client.redeployFunction(args.function_id as string, args.code as string),
+};
+
+const getFunctionMetrics: ToolDefinition = {
+  name: "abrclick_get_function_metrics",
+  description: "Get invocation/latency metrics for a function",
+  inputSchema: { function_id: z.string(), range: z.string().optional().describe("e.g. 1h, 24h, 7d") },
+  handler: async (client, args) =>
+    client.getFunctionMetrics(args.function_id as string, args.range as string | undefined),
+};
+
+const listFunctionTriggers: ToolDefinition = {
+  name: "abrclick_list_function_triggers",
+  description: "List a function's triggers (http, cron, queue)",
+  inputSchema: { function_id: z.string() },
+  handler: async (client, args) => client.getFunctionTriggers(args.function_id as string),
+};
+
+const createFunctionTrigger: ToolDefinition = {
+  name: "abrclick_create_function_trigger",
+  description: "Add a trigger to a function. cronSchedule required when type=cron; queueRef required when type=queue.",
+  inputSchema: {
+    function_id: z.string(),
+    type: z.enum(["http", "cron", "queue"]),
+    cronSchedule: z.string().optional().describe("Required for type=cron, e.g. '0 * * * *'"),
+    queueRef: z.string().optional().describe("Required for type=queue"),
+    enabled: z.boolean().optional(),
+  },
+  handler: async (client, args) => {
+    const { function_id, ...input } = args;
+    return client.createFunctionTrigger(function_id as string, input as never);
+  },
+};
+
+const deleteFunctionTrigger: ToolDefinition = {
+  name: "abrclick_delete_function_trigger",
+  description: "Delete a trigger from a function",
+  inputSchema: { function_id: z.string(), trigger_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteFunctionTrigger(args.function_id as string, args.trigger_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Cron jobs ----
+const listCrons: ToolDefinition = {
+  name: "abrclick_list_crons",
+  description: "List scheduled cron jobs for an app",
+  inputSchema: { app_id: z.string() },
+  handler: async (client, args) => client.getCrons(args.app_id as string),
+};
+
+const createCron: ToolDefinition = {
+  name: "abrclick_create_cron",
+  description: "Create a scheduled cron job that runs a command in an app's container",
+  inputSchema: {
+    appId: z.string(),
+    name: z.string(),
+    schedule: z.string().describe("5-field cron expression, e.g. '0 3 * * *'"),
+    command: z.string().describe("e.g. 'node scripts/cleanup.js'"),
+    timezone: z.string().optional().describe("Defaults to Asia/Tehran"),
+    enabled: z.boolean().optional(),
+  },
+  handler: async (client, args) => client.createCron(args as never),
+};
+
+const getCron: ToolDefinition = {
+  name: "abrclick_get_cron",
+  description: "Get a cron job by ID",
+  inputSchema: { cron_id: z.string() },
+  handler: async (client, args) => client.getCron(args.cron_id as string),
+};
+
+const updateCron: ToolDefinition = {
+  name: "abrclick_update_cron",
+  description: "Update a cron job (schedule, command, timezone, or enable/disable)",
+  inputSchema: {
+    cron_id: z.string(),
+    name: z.string().optional(),
+    schedule: z.string().optional(),
+    command: z.string().optional(),
+    timezone: z.string().optional(),
+    enabled: z.boolean().optional(),
+  },
+  handler: async (client, args) => {
+    const { cron_id, ...input } = args;
+    return client.updateCron(cron_id as string, input as never);
+  },
+};
+
+const deleteCron: ToolDefinition = {
+  name: "abrclick_delete_cron",
+  description: "Delete a cron job",
+  inputSchema: { cron_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteCron(args.cron_id as string);
+    return { success: true };
+  },
+};
+
+const runCron: ToolDefinition = {
+  name: "abrclick_run_cron",
+  description: "Trigger a cron job to run immediately (one-off, off-schedule)",
+  inputSchema: { cron_id: z.string() },
+  handler: async (client, args) => client.runCron(args.cron_id as string),
+};
+
+const getCronRuns: ToolDefinition = {
+  name: "abrclick_get_cron_runs",
+  description: "List a cron job's execution history",
+  inputSchema: { cron_id: z.string() },
+  handler: async (client, args) => client.getCronRuns(args.cron_id as string),
+};
+
+const getCronRunLogs: ToolDefinition = {
+  name: "abrclick_get_cron_run_logs",
+  description: "Get logs for a specific cron run",
+  inputSchema: { cron_id: z.string(), job_name: z.string() },
+  handler: async (client, args) => client.getCronRunLogs(args.cron_id as string, args.job_name as string),
+};
+
+// ---- Persistent disks ----
+const listDisks: ToolDefinition = {
+  name: "abrclick_list_disks",
+  description: "List persistent disks (volumes) in a project",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getDisks(args.project_id as string),
+};
+
+const createDisk: ToolDefinition = {
+  name: "abrclick_create_disk",
+  description: "Create a persistent disk (volume). size_gb grows only afterwards.",
+  inputSchema: {
+    project_id: z.string(),
+    name: z.string(),
+    size_gb: z.number().int().min(1).max(500),
+    mount_path: z.string().optional().describe("Mount path when attached (default /data), must start with /"),
+  },
+  handler: async (client, args) => {
+    const { project_id, ...input } = args;
+    return client.createDisk(project_id as string, input as never);
+  },
+};
+
+const getDisk: ToolDefinition = {
+  name: "abrclick_get_disk",
+  description: "Get a persistent disk by ID",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => client.getDisk(args.disk_id as string),
+};
+
+const updateDisk: ToolDefinition = {
+  name: "abrclick_update_disk",
+  description: "Update a disk (grow size_gb — cannot shrink — or change mount path; redeploys the attached app)",
+  inputSchema: {
+    disk_id: z.string(),
+    size_gb: z.number().int().min(1).max(500).optional(),
+    mount_path: z.string().optional().describe("Must start with /"),
+  },
+  handler: async (client, args) => {
+    const { disk_id, ...input } = args;
+    return client.updateDisk(disk_id as string, input as never);
+  },
+};
+
+const attachDisk: ToolDefinition = {
+  name: "abrclick_attach_disk",
+  description: "Attach a disk to an app (one disk per app). Redeploys the app.",
+  inputSchema: {
+    disk_id: z.string(),
+    app_id: z.string(),
+    mount_path: z.string().optional().describe("Override the disk's mount path, must start with /"),
+  },
+  handler: async (client, args) => {
+    const { disk_id, ...input } = args;
+    return client.attachDisk(disk_id as string, input as never);
+  },
+};
+
+const detachDisk: ToolDefinition = {
+  name: "abrclick_detach_disk",
+  description: "Detach a disk from its app. Redeploys the app.",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => client.detachDisk(args.disk_id as string),
+};
+
+const deleteDisk: ToolDefinition = {
+  name: "abrclick_delete_disk",
+  description: "Delete a persistent disk (DESTRUCTIVE — must be detached first)",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteDisk(args.disk_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Disk backups ----
+const listDiskBackups: ToolDefinition = {
+  name: "abrclick_list_disk_backups",
+  description: "List backups (snapshots) of a persistent disk",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => client.getDiskBackups(args.disk_id as string),
+};
+
+const createDiskBackup: ToolDefinition = {
+  name: "abrclick_create_disk_backup",
+  description: "Create a backup (tarball snapshot) of a persistent disk",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => client.createDiskBackup(args.disk_id as string),
+};
+
+const getDiskBackupDownloadUrl: ToolDefinition = {
+  name: "abrclick_get_disk_backup_download_url",
+  description: "Get a presigned download URL for a disk backup tarball",
+  inputSchema: { disk_id: z.string(), backup_id: z.string() },
+  handler: async (client, args) => client.getDiskBackupDownloadUrl(args.disk_id as string, args.backup_id as string),
+};
+
+const presignDiskBackupRestore: ToolDefinition = {
+  name: "abrclick_presign_disk_backup_restore",
+  description: "Get a presigned PUT URL to upload a tarball for restoring into a disk. Returns the upload key.",
+  inputSchema: { disk_id: z.string() },
+  handler: async (client, args) => client.presignDiskBackupRestore(args.disk_id as string),
+};
+
+const restoreDiskBackup: ToolDefinition = {
+  name: "abrclick_restore_disk_backup",
+  description: "Restore a previously-uploaded tarball into a detached, ready disk (use the key from presign)",
+  inputSchema: { disk_id: z.string(), upload_key: z.string() },
+  handler: async (client, args) => client.restoreDiskBackup(args.disk_id as string, args.upload_key as string),
+};
+
+const deleteDiskBackup: ToolDefinition = {
+  name: "abrclick_delete_disk_backup",
+  description: "Delete a disk backup (row + S3 tarball)",
+  inputSchema: { disk_id: z.string(), backup_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteDiskBackup(args.disk_id as string, args.backup_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Secret manager ----
+const listProjectSecrets: ToolDefinition = {
+  name: "abrclick_list_project_secrets",
+  description: "List secrets in a project (registry credentials or key-value blobs; values are not returned)",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getProjectSecrets(args.project_id as string),
+};
+
+const createSecret: ToolDefinition = {
+  name: "abrclick_create_secret",
+  description:
+    "Create a project secret. type=registry → data {registry, username, password}; type=kv → arbitrary {KEY: value}.",
+  inputSchema: {
+    project_id: z.string(),
+    name: z.string(),
+    type: z.enum(["registry", "kv"]),
+    data: z.record(z.string()).describe("registry: {registry, username, password}; kv: arbitrary key/value"),
+  },
+  handler: async (client, args) => {
+    const { project_id, ...input } = args;
+    return client.createSecret(project_id as string, input as never);
+  },
+};
+
+const updateSecret: ToolDefinition = {
+  name: "abrclick_update_secret",
+  description: "Replace a secret's data blob (same per-type shape as create)",
+  inputSchema: {
+    project_id: z.string(),
+    secret_id: z.string(),
+    data: z.record(z.string()),
+  },
+  handler: async (client, args) =>
+    client.updateSecret(args.project_id as string, args.secret_id as string, { data: args.data as never }),
+};
+
+const deleteSecret: ToolDefinition = {
+  name: "abrclick_delete_secret",
+  description: "Delete a project secret (DESTRUCTIVE)",
+  inputSchema: { project_id: z.string(), secret_id: z.string() },
+  handler: async (client, args) => {
+    await client.deleteSecret(args.project_id as string, args.secret_id as string);
+    return { success: true };
+  },
+};
+
+const listAppSecrets: ToolDefinition = {
+  name: "abrclick_list_app_secrets",
+  description: "List secrets attached to an app",
+  inputSchema: { app_id: z.string() },
+  handler: async (client, args) => client.getAppSecrets(args.app_id as string),
+};
+
+const assignSecretToApp: ToolDefinition = {
+  name: "abrclick_assign_secret_to_app",
+  description: "Attach a project secret to an app. Redeploys the app.",
+  inputSchema: { app_id: z.string(), secret_id: z.string() },
+  handler: async (client, args) => {
+    await client.assignSecretToApp(args.app_id as string, args.secret_id as string);
+    return { success: true };
+  },
+};
+
+const unassignSecretFromApp: ToolDefinition = {
+  name: "abrclick_unassign_secret_from_app",
+  description: "Detach a secret from an app. Redeploys the app.",
+  inputSchema: { app_id: z.string(), secret_id: z.string() },
+  handler: async (client, args) => {
+    await client.unassignSecretFromApp(args.app_id as string, args.secret_id as string);
+    return { success: true };
+  },
+};
+
+// ---- Project-level env vars ----
+const getProjectEnv: ToolDefinition = {
+  name: "abrclick_get_project_env",
+  description: "Get project-wide environment variables (shared across all apps in the project)",
+  inputSchema: { project_id: z.string() },
+  handler: async (client, args) => client.getProjectEnv(args.project_id as string),
+};
+
+const setProjectEnv: ToolDefinition = {
+  name: "abrclick_set_project_env",
+  description: "Set/replace project-wide environment variables (shared across all apps). Pass the full vars map.",
+  inputSchema: { project_id: z.string(), vars: z.record(z.string()) },
+  handler: async (client, args) => client.setProjectEnv(args.project_id as string, args.vars as Record<string, string>),
+};
+
+const deleteProjectEnvVar: ToolDefinition = {
+  name: "abrclick_delete_project_env_var",
+  description: "Delete a single project-wide environment variable by key",
+  inputSchema: { project_id: z.string(), key: z.string() },
+  handler: async (client, args) => {
+    await client.deleteProjectEnvVar(args.project_id as string, args.key as string);
+    return { success: true };
+  },
+};
+
+// ---- API keys (require an admin-scoped key or a JWT session) ----
+const listApiKeys: ToolDefinition = {
+  name: "abrclick_list_api_keys",
+  description: "List the authenticated user's API keys (metadata only — never the secret values)",
+  inputSchema: {},
+  handler: async (client) => client.getApiKeys(),
+};
+
+const createApiKey: ToolDefinition = {
+  name: "abrclick_create_api_key",
+  description:
+    "Mint a new API key. The plaintext key is returned ONCE and never again. Prefer narrow scopes over 'admin'.",
+  inputSchema: {
+    name: z.string(),
+    scopes: z.array(z.enum(["deploy", "db", "registry", "admin"])).optional().describe("Omit for an unscoped key"),
+    expiresAt: z.string().optional().describe("ISO date string; omit for no expiry"),
+  },
+  handler: async (client, args) => client.createApiKey(args as never),
+};
+
+const revokeApiKey: ToolDefinition = {
+  name: "abrclick_revoke_api_key",
+  description: "Revoke (delete) an API key by ID (DESTRUCTIVE — the key stops working immediately)",
+  inputSchema: { key_id: z.string() },
+  handler: async (client, args) => {
+    await client.revokeApiKey(args.key_id as string);
+    return { success: true };
+  },
+};
+
 export const tools: ToolDefinition[] = [
   // Identity / regions
   whoami,
@@ -1409,4 +2141,87 @@ export const tools: ToolDefinition[] = [
   createTask,
   updateTask,
   deleteTask,
+  // Object Storage (buckets)
+  listAllBuckets,
+  listBuckets,
+  createBucket,
+  getBucket,
+  updateBucket,
+  getBucketCredentials,
+  rotateBucketCredentials,
+  deleteBucket,
+  listBucketObjects,
+  getBucketObjectDownloadUrl,
+  deleteBucketObject,
+  createBucketFolder,
+  getBucketCors,
+  putBucketCors,
+  deleteBucketCors,
+  getBucketVersioning,
+  putBucketVersioning,
+  getBucketLifecycle,
+  putBucketLifecycle,
+  deleteBucketLifecycle,
+  // Container Registry
+  listAllRegistries,
+  listRegistries,
+  createRegistry,
+  getRegistry,
+  updateRegistry,
+  getRegistryCredentials,
+  rotateRegistryCredentials,
+  listRegistryRepositories,
+  deleteRegistry,
+  // Functions (FaaS)
+  listFunctions,
+  createFunction,
+  getFunction,
+  updateFunction,
+  deleteFunction,
+  getFunctionSource,
+  redeployFunction,
+  getFunctionMetrics,
+  listFunctionTriggers,
+  createFunctionTrigger,
+  deleteFunctionTrigger,
+  // Cron jobs
+  listCrons,
+  createCron,
+  getCron,
+  updateCron,
+  deleteCron,
+  runCron,
+  getCronRuns,
+  getCronRunLogs,
+  // Persistent disks
+  listDisks,
+  createDisk,
+  getDisk,
+  updateDisk,
+  attachDisk,
+  detachDisk,
+  deleteDisk,
+  // Disk backups
+  listDiskBackups,
+  createDiskBackup,
+  getDiskBackupDownloadUrl,
+  presignDiskBackupRestore,
+  restoreDiskBackup,
+  deleteDiskBackup,
+  // Secret manager
+  listProjectSecrets,
+  createSecret,
+  updateSecret,
+  deleteSecret,
+  listAppSecrets,
+  assignSecretToApp,
+  unassignSecretFromApp,
+  // Project-level env vars
+  getProjectEnv,
+  setProjectEnv,
+  deleteProjectEnvVar,
+  // API keys
+  listApiKeys,
+  createApiKey,
+  revokeApiKey,
 ];
