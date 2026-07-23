@@ -4,11 +4,13 @@ description: >
   Deploy and manage apps, databases, and infrastructure on Abrclick (Farsi-first PaaS +
   DBaaS for Iran) through the @abrclick/ai MCP server. Load whenever the user wants to
   deploy an app, provision a database (postgres/redis/mongo/mysql/mariadb/valkey/memcached/
-  rabbitmq/kafka), link an app to a database, set environment variables, add a custom
-  domain or TLS cert, manage DNS zones/records, promote to staging/production, roll back a
-  deploy, read build/runtime/database logs or metrics, set alerts and backup schedules,
-  manage project members, or check usage/billing on Abrclick. Requires the abrclick MCP
-  server (`@abrclick/ai`) configured with an API key.
+  rabbitmq/kafka), create object-storage buckets or container registries, run serverless
+  functions, schedule cron jobs, attach persistent disks, manage secrets, link an app to a
+  database, set environment variables, add a custom domain or TLS cert, manage DNS
+  zones/records, promote to staging/production, roll back a deploy, read
+  build/runtime/database logs or metrics, set alerts and backup schedules, manage project
+  members or API keys, or check usage/billing on Abrclick. Requires the abrclick MCP
+  server (`@abrclick/ai`); the user authenticates once with `abrclick login`.
 ---
 
 # Abrclick
@@ -20,22 +22,31 @@ Kubernetes in Iran (Tehran, <10ms in-country latency). All operations go through
 ## Setup check
 
 If the `abrclick_*` tools are not available, the MCP server isn't wired up. Tell the user
-to add it (they need an API key from `abrclick keys create "<name>"` or the dashboard →
-Settings → API Keys):
+to (1) log in once, then (2) add the server — **no API key in the config**:
+
+```bash
+npm i -g @abrclick/cli
+abrclick login
+claude mcp add abrclick -- npx -y @abrclick/ai   # or the equivalent for their client
+```
 
 ```json
 {
   "mcpServers": {
     "abrclick": {
       "command": "npx",
-      "args": ["-y", "@abrclick/ai"],
-      "env": { "ABRCLICK_API_KEY": "abr_sk_xxx" }
+      "args": ["-y", "@abrclick/ai"]
     }
   }
 }
 ```
 
-Confirm with `abrclick_whoami` — it returns the authenticated account.
+The server reads the credentials `abrclick login` saves and auto-refreshes them, so nothing
+goes stale and there's no env var to manage. (CI/headless only: set `ABRCLICK_API_KEY=abr_sk_…`
+in the server env instead — it overrides the login session.)
+
+Confirm with `abrclick_whoami` — it returns the authenticated account. If it errors with
+"Not authenticated", the user hasn't run `abrclick login` yet.
 
 ## Core model — read before acting
 
@@ -54,8 +65,9 @@ Confirm with `abrclick_whoami` — it returns the authenticated account.
   **not** take effect until the app redeploys (`abrclick_redeploy_app`). Say so.
 - **Farsi errors.** Tool errors carry both English and Farsi (`message_fa`). Surface the
   Farsi to the user when they're working in Farsi.
-- **Regions.** `abrclick_list_regions` shows deployment regions. The API key is
-  region-agnostic; pin a region with the `ABRCLICK_REGION` env var if needed.
+- **Regions.** `abrclick_list_regions` shows deployment regions. Auth is region-agnostic;
+  the server follows whatever region `abrclick region use <slug>` selected (or the
+  `ABRCLICK_REGION` override).
 
 ## Common workflows
 
@@ -183,6 +195,91 @@ access when the consumer is another Abrclick app.
 `abrclick_list_tasks` / `create_task` / `update_task` / `delete_task` — a per-project
 kanban board (status: backlog|todo|doing|review|done, priority, labels, due date).
 
+### Object storage (S3 buckets)
+
+1. `abrclick_create_bucket` `{ project_id, name, sizeGb, isPublic?, objectLockEnabled? }` —
+   `sizeGb` is a fixed step (10GB free); `name` is 3–63 lowercase alphanumerics/hyphens.
+2. `abrclick_get_bucket_credentials` `{ bucket_id }` → S3 endpoint + access/secret key
+   (**secret** — don't echo). `abrclick_rotate_bucket_credentials` invalidates the old key.
+3. Objects: `abrclick_list_bucket_objects` `{ bucket_id, prefix?, delimiter?, token? }`,
+   `abrclick_get_bucket_object_download_url` `{ bucket_id, key }`,
+   `abrclick_delete_bucket_object` `{ bucket_id, key }` (destructive),
+   `abrclick_create_bucket_folder`. Uploading object bytes is a CLI/SDK job, not MCP.
+4. Config: `put_bucket_cors` / `put_bucket_versioning` / `put_bucket_lifecycle` (each has a
+   matching `get_*` and, for cors/lifecycle, a `delete_*`).
+5. `abrclick_update_bucket` resizes (grow-only steps) or toggles public read;
+   `abrclick_delete_bucket` is **DESTRUCTIVE — removes all objects.**
+
+### Container registry
+
+1. `abrclick_create_registry` `{ project_id, name, sizeGb, isPublic? }` (1GB free).
+2. `abrclick_get_registry_credentials` `{ registry_id }` → docker-login user/password
+   (**secret**). `abrclick_rotate_registry_credentials` invalidates the old password.
+3. `abrclick_list_registry_repositories` `{ registry_id }` lists images/tags. Pushing an
+   image is a `docker push` the user runs after `docker login` — not an MCP call.
+4. Then deploy an image from it: `abrclick_deploy_app { app_id, source_type: "image",
+   image_tag }`, adding a `registry`-type secret to the app if the registry is private.
+5. `abrclick_delete_registry` is **DESTRUCTIVE — removes all images.**
+
+### Serverless functions (FaaS)
+
+1. `abrclick_create_function` `{ project_id, name, code?, entryFile?, memoryMb?, timeoutSec? }`
+   — pass inline Node handler `code` (max ~256KB) or upload later. `entryFile` like
+   `index.handler`.
+2. `abrclick_redeploy_function` `{ function_id, code }` ships new source.
+3. Triggers: `abrclick_create_function_trigger` `{ function_id, type, cronSchedule?,
+   queueRef? }` — `type` is `http` | `cron` (needs `cronSchedule`) | `queue` (needs
+   `queueRef`). `list_function_triggers` / `delete_function_trigger` manage them.
+4. `abrclick_get_function_metrics` `{ function_id, range? }`; `abrclick_get_function_source`
+   reads current code. `abrclick_delete_function` is destructive.
+
+### Cron jobs (scheduled commands in an app)
+
+- `abrclick_create_cron` `{ appId, name, schedule, command, timezone?, enabled? }` —
+  `schedule` is a 5-field cron expr (e.g. `"0 3 * * *"`), `timezone` defaults to
+  Asia/Tehran, `command` runs in the app's container.
+- `abrclick_run_cron` `{ cron_id }` fires it now (off-schedule); `abrclick_get_cron_runs`
+  lists history; `abrclick_get_cron_run_logs` `{ cron_id, job_name }` reads one run's logs.
+- `update_cron` / `delete_cron` manage them.
+
+### Persistent disks (volumes)
+
+1. `abrclick_create_disk` `{ project_id, name, size_gb, mount_path? }` — `size_gb` grows
+   only afterwards; `mount_path` defaults to `/data` and must start with `/`.
+2. `abrclick_attach_disk` `{ disk_id, app_id, mount_path? }` — **one disk per app; redeploys
+   the app.** `abrclick_detach_disk` `{ disk_id }` also redeploys.
+3. `abrclick_update_disk` grows `size_gb` (can't shrink) or changes the mount path.
+4. Backups: `abrclick_create_disk_backup` `{ disk_id }` snapshots to a tarball;
+   `abrclick_list_disk_backups`; `abrclick_get_disk_backup_download_url`. **Restore** is a
+   two-step upload: `abrclick_presign_disk_backup_restore` `{ disk_id }` → user uploads the
+   tarball to the returned URL → `abrclick_restore_disk_backup` `{ disk_id, upload_key }`
+   (disk must be **detached and ready**). `delete_disk` / `delete_disk_backup` are destructive.
+
+### Secret manager
+
+- `abrclick_create_secret` `{ project_id, name, type, data }` — `type: "registry"` →
+  `data { registry, username, password }` (for pulling private images); `type: "kv"` →
+  arbitrary `{ KEY: value }`. Values are write-only; `list_project_secrets` never returns them.
+- `abrclick_assign_secret_to_app` `{ app_id, secret_id }` attaches it (**redeploys the
+  app**); `abrclick_unassign_secret_from_app` detaches (also redeploys).
+- `update_secret` replaces the data blob; `delete_secret` is destructive.
+- Prefer secrets over plain env vars for registry creds and anything that must not appear
+  in plaintext env listings.
+
+### Project-wide env vars
+
+`abrclick_get_project_env` / `abrclick_set_project_env` `{ project_id, vars }` (full map
+replace) / `abrclick_delete_project_env_var` — variables shared across **all apps** in a
+project. App-level env (`abrclick_set_env`) wins on key conflicts. Still needs a redeploy.
+
+### API keys
+
+`abrclick_create_api_key` `{ name, scopes?, expiresAt? }` mints a key — the plaintext is
+returned **once**, so surface it to the user immediately and tell them to store it. Prefer
+**narrow scopes** (`deploy`, `db`, `registry`) over `admin`. `list_api_keys` shows metadata
+only; `revoke_api_key` `{ key_id }` is **DESTRUCTIVE** (the key stops working instantly).
+Minting/revoking requires an `admin` key or a full login session, not a narrow CI key.
+
 ## Safety
 
 These tools act on **live infrastructure**. Before any **destructive or irreversible**
@@ -190,16 +287,26 @@ call, state exactly what will be affected and **confirm with the user first**:
 
 - `abrclick_delete_project` / `abrclick_delete_app` / `abrclick_delete_database` —
   destroy resources and data.
+- `abrclick_delete_bucket` / `abrclick_delete_registry` — destroy **all objects/images** in
+  them. `abrclick_delete_bucket_object` removes one object.
+- `abrclick_delete_function`, `abrclick_delete_disk`, `abrclick_delete_disk_backup`,
+  `abrclick_delete_secret`, `abrclick_delete_cron`.
 - `abrclick_delete_backup`, `abrclick_delete_dns_zone`, `abrclick_delete_dns_record`.
-- `abrclick_restore_backup` — **overwrites** the live database (offer `clone_backup`).
+- `abrclick_restore_backup` / `abrclick_restore_disk_backup` — **overwrite** live data
+  (offer `clone_backup` for databases).
 - `abrclick_disable_db_public_access` — breaks anything connecting over the public
   endpoint.
+- `abrclick_revoke_api_key` — the key stops working immediately; anything using it breaks.
+- `abrclick_rotate_bucket_credentials` / `abrclick_rotate_registry_credentials` — old
+  keys/passwords stop working immediately.
 - `abrclick_promote_app { to: "production" }` — needs `confirm_production: true`.
+- Attaching/detaching a disk or a secret **redeploys the app** — say so before doing it.
 
 **Billing is read-only here** (`get_usage`, `get_plans`, `get_invoices`, `get_addons`,
 `get_my_addons`, `get_wallet`, `get_wallet_transactions`, `get_agent_usage`). To upgrade a
 plan, buy an add-on, or top up the wallet, **send the user to the dashboard** — those
 money moves are intentionally not exposed to AI.
 
-**Never echo secrets** (`get_database_credentials`, `get_env { reveal: true }`,
+**Never echo secrets** (`get_database_credentials`, `get_bucket_credentials`,
+`get_registry_credentials`, `get_env { reveal: true }`, `create_api_key` output,
 `upload_cert` key) unless the user explicitly asks for them.
