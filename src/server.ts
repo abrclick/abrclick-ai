@@ -2,14 +2,24 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AbrclickClient } from "@abrclick/sdk";
 import { tools } from "./tools.js";
 
+// The API's AllExceptionsFilter sends a NESTED envelope:
+//   { statusCode, success:false, error: { code, message, message_fa, timestamp, path } }
+// The old flat interface here read `data.error` (the nested OBJECT) into a string template →
+// "Error: [object Object]", with message/status undefined. That masked every real error. Model the
+// real shape; a few legacy paths still send flat top-level fields, so both are optional.
+interface ApiErrorEnvelope {
+  statusCode?: number;
+  status?: number;
+  // Nested (current filter). `error` is an object here; on legacy paths it may be a bare code string.
+  error?: string | { code?: string; message?: string | string[]; message_fa?: string };
+  message?: string | string[];
+  message_fa?: string;
+}
+
 interface AxiosError extends Error {
   response?: {
-    data?: {
-      error?: string;
-      message?: string;
-      message_fa?: string;
-      status?: number;
-    };
+    status?: number;
+    data?: ApiErrorEnvelope;
   };
   isAxiosError?: boolean;
 }
@@ -53,20 +63,18 @@ export function createServer(client: AbrclickClient): McpServer {
 
           if (error.isAxiosError && error.response?.data) {
             const apiError = error.response.data;
-            const parts: string[] = [];
+            // Flatten the nested `error` object (current filter) OR bare fields (legacy paths).
+            const nested = typeof apiError.error === "object" ? apiError.error : undefined;
+            const code = typeof apiError.error === "string" ? apiError.error : nested?.code;
+            const msg = nested?.message ?? apiError.message;
+            const msgFa = nested?.message_fa ?? apiError.message_fa;
+            const httpStatus = apiError.statusCode ?? apiError.status ?? error.response.status;
 
-            if (apiError.error) {
-              parts.push(`Error: ${apiError.error}`);
-            }
-            if (apiError.message) {
-              parts.push(`Message: ${apiError.message}`);
-            }
-            if (apiError.message_fa) {
-              parts.push(`Message (Farsi): ${apiError.message_fa}`);
-            }
-            if (apiError.status) {
-              parts.push(`Status: ${apiError.status}`);
-            }
+            const parts: string[] = [];
+            if (code) parts.push(`Error: ${code}`);
+            if (msg) parts.push(`Message: ${Array.isArray(msg) ? msg.join(", ") : msg}`);
+            if (msgFa) parts.push(`Message (Farsi): ${msgFa}`);
+            if (httpStatus) parts.push(`Status: ${httpStatus}`);
 
             errorText = parts.length > 0 ? parts.join("\n") : error.message;
           } else {
