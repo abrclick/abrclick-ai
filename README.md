@@ -16,6 +16,14 @@ client the same way.
 > to Abrclick directly — it calls the `abrclick_*` tools this package exposes, which call
 > the Abrclick API as you. No plugin store, no browser extension. One `npx` line.
 
+## Products
+
+- [استقرار اپلیکیشن (PaaS)](https://abrclick.ir/paas) — deploy Node.js, Python, Go, PHP & Docker apps
+- [دیتابیس مدیریت‌شده (DBaaS)](https://abrclick.ir/databases) — managed PostgreSQL, Redis, MongoDB, MySQL
+- [فضای ذخیره‌سازی ابری (Object Storage)](https://abrclick.ir/object-storage) — S3-compatible buckets
+- [توابع بدون سرور (Serverless)](https://abrclick.ir/serverless) — run functions without managing servers
+- [همه‌ی محصولات](https://abrclick.ir/products)
+
 ## Why
 
 You describe what you want — "deploy this Next.js repo and give it a Postgres" — and your
