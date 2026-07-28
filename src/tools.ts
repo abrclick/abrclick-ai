@@ -190,14 +190,21 @@ const listApps: ToolDefinition = {
 
 const createApp: ToolDefinition = {
   name: "abrclick_create_app",
-  description: "Create a new Abrclick app",
+  description:
+    "Create a new Abrclick app. cpu_limit/memory_limit MUST be a matching pair from a defined instance tier — call abrclick_get_tiers with type='app' and use one tier's exact cpu/mem. Never invent custom values (e.g. 1400m / 2560Mi); off-tier sizes are rejected. Omit both to get the smallest tier default.",
   inputSchema: {
     project_id: z.string(),
     name: z.string(),
     runtime: z.string(),
     port: z.number().optional(),
-    cpu_limit: z.string().optional(),
-    memory_limit: z.string().optional(),
+    cpu_limit: z
+      .string()
+      .optional()
+      .describe("Must equal a tier's cpu from abrclick_get_tiers(type='app'). Pair with the SAME tier's memory_limit."),
+    memory_limit: z
+      .string()
+      .optional()
+      .describe("Must equal the SAME tier's mem from abrclick_get_tiers(type='app'). Pair with that tier's cpu_limit."),
     root_dir: z.string().optional(),
   },
   handler: async (client, args) => {
@@ -660,15 +667,22 @@ const getDatabaseVersions: ToolDefinition = {
 
 const createDatabase: ToolDefinition = {
   name: "abrclick_create_database",
-  description: "Create a new Abrclick database",
+  description:
+    "Create a new Abrclick database. cpu_limit/memory_limit MUST be a matching pair from a defined instance tier — call abrclick_get_tiers with type='database' and use one tier's exact cpu/mem. Never invent custom values; off-tier sizes are rejected. Omit both to get the smallest tier default.",
   inputSchema: {
     project_id: z.string(),
     name: z.string(),
     type: z.enum(["postgres", "redis", "mongo", "mysql", "mariadb", "valkey", "memcached", "rabbitmq", "kafka"]),
     version: z.string(),
     storage_gb: z.number(),
-    cpu_limit: z.string().optional(),
-    memory_limit: z.string().optional(),
+    cpu_limit: z
+      .string()
+      .optional()
+      .describe("Must equal a tier's cpu from abrclick_get_tiers(type='database'). Pair with the SAME tier's memory_limit."),
+    memory_limit: z
+      .string()
+      .optional()
+      .describe("Must equal the SAME tier's mem from abrclick_get_tiers(type='database'). Pair with that tier's cpu_limit."),
     replica_set: z.boolean().optional(),
   },
   handler: async (client, args) => {
@@ -965,15 +979,16 @@ const getTemplate: ToolDefinition = {
 
 const deployTemplate: ToolDefinition = {
   name: "abrclick_deploy_template",
-  description: "Deploy an Abrclick one-click app template",
+  description:
+    "Deploy an Abrclick one-click app template. If you override sizing, app_cpu/app_memory must be a matching pair from abrclick_get_tiers(type='app') and db_cpu/db_memory a pair from abrclick_get_tiers(type='database'). Never invent custom values — off-tier overrides are rejected. Omit them to use the template's declared defaults.",
   inputSchema: {
     slug: z.string(),
     project_id: z.string(),
     app_name: z.string(),
-    app_cpu: z.string().optional(),
-    app_memory: z.string().optional(),
-    db_cpu: z.string().optional(),
-    db_memory: z.string().optional(),
+    app_cpu: z.string().optional().describe("Override: must equal a tier's cpu from abrclick_get_tiers(type='app'), paired with app_memory."),
+    app_memory: z.string().optional().describe("Override: must equal the SAME app tier's mem, paired with app_cpu."),
+    db_cpu: z.string().optional().describe("Override: must equal a tier's cpu from abrclick_get_tiers(type='database'), paired with db_memory."),
+    db_memory: z.string().optional().describe("Override: must equal the SAME db tier's mem, paired with db_cpu."),
     variables: z.record(z.string()).optional(),
   },
   handler: async (client, args) => {
