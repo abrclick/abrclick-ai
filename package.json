@@ -52,10 +52,10 @@
     "release:major": "npm version major && git push --follow-tags"
   },
   "dependencies": {
-    "@abrclick/sdk": "^0.3.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "conf": "^13.0.0",
-    "zod": "^3.23.0"
+    "@abrclick/sdk": "^0.3.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "conf": "^13.1.0",
+    "zod": "^3.25.76"
   },
   "files": [
     "dist",
