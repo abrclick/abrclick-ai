@@ -460,13 +460,12 @@ const getRuntimeLogs: ToolDefinition = {
 // Env
 const getEnv: ToolDefinition = {
   name: "abrclick_get_env",
-  description: "Get Abrclick app environment variables",
+  description: "Get Abrclick app environment variables with secret values masked-only",
   inputSchema: {
     app_id: z.string(),
-    reveal: z.boolean().optional(),
   },
   handler: async (client, args) => {
-    const vars = await client.getEnv(args.app_id as string, args.reveal as boolean);
+    const vars = await client.getEnv(args.app_id as string);
     return { vars };
   },
 };

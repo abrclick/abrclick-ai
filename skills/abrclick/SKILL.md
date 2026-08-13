@@ -123,8 +123,9 @@ access when the consumer is another Abrclick app.
 - `abrclick_set_env` `{ app_id, vars: [{ key, value, is_secret?, is_build_time? }] }` â€”
   bulk upsert. Mark secrets with `is_secret: true`; mark vars needed during the build
   (e.g. during `npm run build`, not just at runtime) with `is_build_time: true`.
-- `abrclick_get_env` `{ app_id, reveal: true }` to see secret values (secret; don't echo
-  unprompted).
+- `abrclick_get_env` `{ app_id }` lists environment variables with secret values always
+  masked. Environment secret values never return; rotate a secret by replacing its value
+  through `abrclick_set_env` (write-only).
 - `abrclick_delete_env_var` `{ app_id, key }`. **A change to env requires a redeploy.**
 
 ### Custom domain + TLS
@@ -308,5 +309,6 @@ plan, buy an add-on, or top up the wallet, **send the user to the dashboard** â€
 money moves are intentionally not exposed to AI.
 
 **Never echo secrets** (`get_database_credentials`, `get_bucket_credentials`,
-`get_registry_credentials`, `get_env { reveal: true }`, `create_api_key` output,
-`upload_cert` key) unless the user explicitly asks for them.
+`get_registry_credentials`, `create_api_key` output, `upload_cert` key) unless the user
+explicitly asks for them. Environment secret values never return; rotate them by replacing
+the value through `set_env` (write-only).

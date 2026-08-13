@@ -332,9 +332,10 @@ foot-guns:
   `abrclick deploy` for local-folder deploys. Likewise an **interactive shell / one-off
   exec** into a running container is a streaming WebSocket, not a request/response tool —
   use `abrclick shell` / `abrclick run`.
-- **Credentials are secret.** `get_database_credentials`, `get_bucket_credentials`,
-  `get_registry_credentials`, and `get_env {reveal:true}` return live secrets. The skill
-  instructs the AI not to echo them unless you ask.
+- **Credentials are secret.** `get_database_credentials`, `get_bucket_credentials`, and
+  `get_registry_credentials` return live secrets. Environment secret values never return;
+  rotate them by replacing values with `set_env` (write-only). The skill instructs the AI
+  not to echo returned credentials unless you ask.
 
 ## Development
 
