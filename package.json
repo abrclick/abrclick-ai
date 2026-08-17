@@ -2,10 +2,10 @@
   "name": "@abrclick/ai",
   "version": "0.6.0",
   "type": "module",
-  "description": "Give your AI coding tool full control of Abrclick — deploy apps, provision databases, manage domains, DNS, backups, and more (PaaS + DBaaS for Iran). MCP server.",
+  "description": "Give your AI coding tool full control of Abrclick — deploy apps, provision databases, manage domains, DNS, backups, and more (PaaS + DBaaS for abrclick). MCP server.",
   "private": false,
   "license": "SEE LICENSE IN LICENSE",
-  "author": "Abrclick <support@abrclick.ir> (https://abrclick.ir)",
+  "author": "Abrclick <support@abrclick.cloud> (https://abrclick.ir)",
   "homepage": "https://abrclick.ir",
   "bugs": {
     "url": "https://github.com/abrclick/abrclick-ai/issues"
@@ -52,7 +52,7 @@
     "release:major": "npm version major && git push --follow-tags"
   },
   "dependencies": {
-    "@abrclick/sdk": "^0.3.1",
+    "@abrclick/sdk": "^0.6.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "conf": "^13.1.0",
     "zod": "^3.25.76"
