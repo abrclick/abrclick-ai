@@ -252,8 +252,9 @@ kanban board (status: backlog|todo|doing|review|done, priority, labels, due date
 3. `abrclick_update_disk` grows `size_gb` (can't shrink) or changes the mount path.
 4. Backups: `abrclick_create_disk_backup` `{ disk_id }` snapshots to a tarball;
    `abrclick_list_disk_backups`; `abrclick_get_disk_backup_download_url`. **Restore** is a
-   two-step upload: `abrclick_presign_disk_backup_restore` `{ disk_id }` → user uploads the
-   tarball to the returned URL → `abrclick_restore_disk_backup` `{ disk_id, upload_key }`
+   two-step upload: `abrclick_presign_disk_backup_restore`
+   `{ disk_id, filename, size_bytes }` → user uploads the tarball to the returned URL →
+   `abrclick_restore_disk_backup` `{ disk_id, upload_key }`
    (disk must be **detached and ready**). `delete_disk` / `delete_disk_backup` are destructive.
 
 ### Secret manager
@@ -269,9 +270,10 @@ kanban board (status: backlog|todo|doing|review|done, priority, labels, due date
 
 ### Project-wide env vars
 
-`abrclick_get_project_env` / `abrclick_set_project_env` `{ project_id, vars }` (full map
-replace) / `abrclick_delete_project_env_var` — variables shared across **all apps** in a
-project. App-level env (`abrclick_set_env`) wins on key conflicts. Still needs a redeploy.
+`abrclick_get_project_env` / `abrclick_set_project_env` `{ project_id, vars: [{ key, value,
+is_secret?, is_build_time? }] }` (bulk upsert; only supplied keys change) /
+`abrclick_delete_project_env_var` — variables shared across **all apps** in a project.
+App-level env (`abrclick_set_env`) wins on key conflicts. Still needs a redeploy.
 
 ### API keys
 

@@ -1,5 +1,5 @@
 import { z, ZodRawShape } from "zod";
-import type { AbrclickClient } from "@abrclick/sdk";
+import type { AbrclickClient, EnvVar } from "@abrclick/sdk";
 
 type Json = Record<string, unknown>;
 
@@ -1887,8 +1887,15 @@ const getDiskBackupDownloadUrl: ToolDefinition = {
 const presignDiskBackupRestore: ToolDefinition = {
   name: "abrclick_presign_disk_backup_restore",
   description: "Get a presigned PUT URL to upload a tarball for restoring into a disk. Returns the upload key.",
-  inputSchema: { disk_id: z.string() },
-  handler: async (client, args) => client.presignDiskBackupRestore(args.disk_id as string),
+  inputSchema: {
+    disk_id: z.string(),
+    filename: z.string().min(1).max(255).describe("Tarball filename, including its extension"),
+    size_bytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).describe("Tarball size in bytes"),
+  },
+  handler: async (client, args) => {
+    const { disk_id, ...input } = args;
+    return client.presignDiskBackupRestore(disk_id as string, input as never);
+  },
 };
 
 const restoreDiskBackup: ToolDefinition = {
@@ -1991,9 +1998,20 @@ const getProjectEnv: ToolDefinition = {
 
 const setProjectEnv: ToolDefinition = {
   name: "abrclick_set_project_env",
-  description: "Set/replace project-wide environment variables (shared across all apps). Pass the full vars map.",
-  inputSchema: { project_id: z.string(), vars: z.record(z.string()) },
-  handler: async (client, args) => client.setProjectEnv(args.project_id as string, args.vars as Record<string, string>),
+  description: "Bulk upsert project-wide environment variables (shared across all apps)",
+  inputSchema: {
+    project_id: z.string(),
+    vars: z.array(z.object({
+      key: z.string(),
+      value: z.string().optional(),
+      is_secret: z.boolean().optional(),
+      is_build_time: z.boolean().optional(),
+    })),
+  },
+  handler: async (client, args) => {
+    await client.setProjectEnv(args.project_id as string, args.vars as EnvVar[]);
+    return { success: true };
+  },
 };
 
 const deleteProjectEnvVar: ToolDefinition = {
