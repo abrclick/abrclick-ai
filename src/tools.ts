@@ -1128,8 +1128,12 @@ const listAlertRules: ToolDefinition = {
   description: "List Abrclick alert rules for apps and databases",
   inputSchema: {},
   handler: async (client) => {
-    const rules = await client.getAlertRules();
-    return { rules };
+    // `/alert-rules` became paginated (`{ data, total, page, limit }`). The pinned SDK still
+    // types this as a bare array, so accept either shape until the SDK is republished with the
+    // filter-aware signature — an MCP tool must not start returning an envelope where the model
+    // was promised a list.
+    const result = (await client.getAlertRules()) as unknown as Json[] | { data: Json[] };
+    return { rules: Array.isArray(result) ? result : result.data };
   },
 };
 
