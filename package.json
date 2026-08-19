@@ -1,6 +1,6 @@
 {
   "name": "@abrclick/ai",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "type": "module",
   "description": "Give your AI coding tool full control of Abrclick — deploy apps, provision databases, manage domains, DNS, backups, and more (PaaS + DBaaS for abrclick). MCP server.",
   "private": false,
