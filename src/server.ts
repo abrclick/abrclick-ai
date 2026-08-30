@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AbrclickClient } from "@abrclick/sdk";
+import { executeWithUserConfirmation, getToolAnnotations, redactSensitiveResult, requiresUserConfirmation } from "./security.js";
 import { tools } from "./tools.js";
 
 // The API's AllExceptionsFilter sends a NESTED envelope:
@@ -43,16 +44,19 @@ export function createServer(client: AbrclickClient): McpServer {
       {
         description: tool.description,
         inputSchema: tool.inputSchema,
+        annotations: getToolAnnotations(tool.name),
       },
       async (args) => {
         try {
-          const result = await tool.handler(client, args);
+          const result = requiresUserConfirmation(tool.name)
+            ? await executeWithUserConfirmation(server.server, tool, () => tool.handler(client, args))
+            : await tool.handler(client, args);
 
           return {
             content: [
               {
                 type: "text" as const,
-                text: JSON.stringify(result, null, 2),
+                text: JSON.stringify(redactSensitiveResult(result), null, 2),
               },
             ],
           };

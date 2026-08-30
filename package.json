@@ -44,6 +44,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build",
     "release:first": "git tag -a v$npm_package_version -m v$npm_package_version && git push origin main --follow-tags",
