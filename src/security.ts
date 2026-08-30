@@ -34,6 +34,53 @@ export interface ConfirmationRequester {
 }
 
 const DESTRUCTIVE_TOOL_NAME = /(delete|remove|revoke|rotate|restore|rollback|disable|stop|unlink|unassign|detach|cancel|disconnect)/;
+const LOW_RISK_READ_ONLY_TOOLS = new Set([
+  "abrclick_whoami",
+  "abrclick_list_regions",
+  "abrclick_list_projects",
+  "abrclick_get_project",
+  "abrclick_list_members",
+  "abrclick_list_invites",
+  "abrclick_list_apps",
+  "abrclick_get_app",
+  "abrclick_list_environments",
+  "abrclick_list_deployments",
+  "abrclick_list_databases",
+  "abrclick_get_database",
+  "abrclick_get_database_versions",
+  "abrclick_list_backups",
+  "abrclick_list_dns_zones",
+  "abrclick_list_dns_records",
+  "abrclick_list_templates",
+  "abrclick_get_template",
+  "abrclick_get_template_deployment",
+  "abrclick_get_app_metrics",
+  "abrclick_get_database_metrics",
+  "abrclick_get_tiers",
+  "abrclick_get_usage",
+  "abrclick_get_plans",
+  "abrclick_list_alert_rules",
+  "abrclick_list_tasks",
+  "abrclick_list_all_buckets",
+  "abrclick_list_buckets",
+  "abrclick_get_bucket",
+  "abrclick_get_bucket_cors",
+  "abrclick_get_bucket_versioning",
+  "abrclick_get_bucket_lifecycle",
+  "abrclick_list_all_registries",
+  "abrclick_list_registries",
+  "abrclick_get_registry",
+  "abrclick_list_functions",
+  "abrclick_get_function",
+  "abrclick_get_function_metrics",
+  "abrclick_list_function_triggers",
+  "abrclick_list_crons",
+  "abrclick_get_cron",
+  "abrclick_get_cron_runs",
+  "abrclick_list_disks",
+  "abrclick_get_disk",
+  "abrclick_list_disk_backups",
+]);
 const SENSITIVE_FIELD_NAMES = new Set([
   "password",
   "passphrase",
@@ -51,13 +98,8 @@ const SENSITIVE_FIELD_NAMES = new Set([
   "databaseurl",
 ]);
 
-function isCapabilityTool(name: string): boolean {
-  return name.includes("_url") || name.includes("_presign_");
-}
-
 function isReadOnlyTool(name: string): boolean {
-  return name === "abrclick_whoami" ||
-    ((name.startsWith("abrclick_get_") || name.startsWith("abrclick_list_")) && !isCapabilityTool(name));
+  return LOW_RISK_READ_ONLY_TOOLS.has(name);
 }
 
 export function requiresUserConfirmation(name: string): boolean {

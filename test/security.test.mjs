@@ -30,6 +30,17 @@ test("tool classification defaults unknown tools to confirmation", () => {
   assert.equal(requiresUserConfirmation("abrclick_get_bucket_object_download_url"), true);
   assert.equal(requiresUserConfirmation("abrclick_get_disk_backup_download_url"), true);
   assert.equal(requiresUserConfirmation("abrclick_future_operation"), true);
+  assert.equal(requiresUserConfirmation("abrclick_get_future_secret"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_future_secrets"), true);
+  assert.equal(requiresUserConfirmation("abrclick_get_runtime_logs"), true);
+  assert.equal(requiresUserConfirmation("abrclick_get_function_source"), true);
+  assert.equal(requiresUserConfirmation("abrclick_get_env"), true);
+  assert.equal(requiresUserConfirmation("abrclick_get_project_env"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_project_secrets"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_api_keys"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_bucket_objects"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_registry_repositories"), true);
+  assert.equal(requiresUserConfirmation("abrclick_list_github_repos"), true);
   assert.deepEqual(getToolAnnotations("abrclick_list_projects"), {
     readOnlyHint: true,
     destructiveHint: false,
