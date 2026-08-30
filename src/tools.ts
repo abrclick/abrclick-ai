@@ -723,15 +723,6 @@ const updateDatabase: ToolDefinition = {
   },
 };
 
-const getDatabaseCredentials: ToolDefinition = {
-  name: "abrclick_get_database_credentials",
-  description: "Get Abrclick database connection credentials",
-  inputSchema: {
-    db_id: z.string(),
-  },
-  handler: async (client, args) => client.getDatabaseCredentials(args.db_id as string),
-};
-
 const deleteDatabase: ToolDefinition = {
   name: "abrclick_delete_database",
   description: "Delete an Abrclick database",
@@ -1361,20 +1352,6 @@ const updateBucket: ToolDefinition = {
   },
 };
 
-const getBucketCredentials: ToolDefinition = {
-  name: "abrclick_get_bucket_credentials",
-  description: "Get S3 access credentials for a bucket (SECRET — endpoint, access key, secret key)",
-  inputSchema: { bucket_id: z.string() },
-  handler: async (client, args) => client.getBucketCredentials(args.bucket_id as string),
-};
-
-const rotateBucketCredentials: ToolDefinition = {
-  name: "abrclick_rotate_bucket_credentials",
-  description: "Rotate a bucket's S3 access keys (invalidates the old secret key immediately)",
-  inputSchema: { bucket_id: z.string() },
-  handler: async (client, args) => client.rotateBucketCredentials(args.bucket_id as string),
-};
-
 const deleteBucket: ToolDefinition = {
   name: "abrclick_delete_bucket",
   description: "Delete a bucket (DESTRUCTIVE — removes the bucket and all its objects)",
@@ -1568,20 +1545,6 @@ const updateRegistry: ToolDefinition = {
     const { registry_id, ...input } = args;
     return client.updateRegistry(registry_id as string, input as never);
   },
-};
-
-const getRegistryCredentials: ToolDefinition = {
-  name: "abrclick_get_registry_credentials",
-  description: "Get docker-login credentials for a registry (SECRET — registry URL, username, password)",
-  inputSchema: { registry_id: z.string() },
-  handler: async (client, args) => client.getRegistryCredentials(args.registry_id as string),
-};
-
-const rotateRegistryCredentials: ToolDefinition = {
-  name: "abrclick_rotate_registry_credentials",
-  description: "Rotate a registry's password (invalidates the old one immediately)",
-  inputSchema: { registry_id: z.string() },
-  handler: async (client, args) => client.rotateRegistryCredentials(args.registry_id as string),
 };
 
 const listRegistryRepositories: ToolDefinition = {
@@ -2036,18 +1999,6 @@ const listApiKeys: ToolDefinition = {
   handler: async (client) => client.getApiKeys(),
 };
 
-const createApiKey: ToolDefinition = {
-  name: "abrclick_create_api_key",
-  description:
-    "Mint a new API key. The plaintext key is returned ONCE and never again. Prefer narrow scopes over 'admin'.",
-  inputSchema: {
-    name: z.string(),
-    scopes: z.array(z.enum(["deploy", "db", "registry", "admin"])).optional().describe("Omit for an unscoped key"),
-    expiresAt: z.string().optional().describe("ISO date string; omit for no expiry"),
-  },
-  handler: async (client, args) => client.createApiKey(args as never),
-};
-
 const revokeApiKey: ToolDefinition = {
   name: "abrclick_revoke_api_key",
   description: "Revoke (delete) an API key by ID (DESTRUCTIVE — the key stops working immediately)",
@@ -2123,7 +2074,6 @@ export const tools: ToolDefinition[] = [
   createDatabase,
   getDatabase,
   updateDatabase,
-  getDatabaseCredentials,
   deleteDatabase,
   enableDbPublicAccess,
   disableDbPublicAccess,
@@ -2183,8 +2133,6 @@ export const tools: ToolDefinition[] = [
   createBucket,
   getBucket,
   updateBucket,
-  getBucketCredentials,
-  rotateBucketCredentials,
   deleteBucket,
   listBucketObjects,
   getBucketObjectDownloadUrl,
@@ -2204,8 +2152,6 @@ export const tools: ToolDefinition[] = [
   createRegistry,
   getRegistry,
   updateRegistry,
-  getRegistryCredentials,
-  rotateRegistryCredentials,
   listRegistryRepositories,
   deleteRegistry,
   // Functions (FaaS)
@@ -2258,6 +2204,5 @@ export const tools: ToolDefinition[] = [
   deleteProjectEnvVar,
   // API keys
   listApiKeys,
-  createApiKey,
   revokeApiKey,
 ];

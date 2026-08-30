@@ -108,8 +108,8 @@ Confirm with `abrclick_whoami` — it returns the authenticated account. If it e
 3. `abrclick_link_db` `{ app_id, database_id, env_prefix? }` — injects connection env vars
    (e.g. `DATABASE_URL`, `DATABASE_HOST`) into the app. Then **redeploy the app**
    (`abrclick_redeploy_app`) for the new env to take effect.
-4. `abrclick_get_database_credentials` `{ db_id }` for the raw connection string. Treat
-   credentials as **secret** — don't echo them unless the user explicitly asks.
+4. Retrieve raw database credentials only through the Abrclick Console or CLI's secure
+   delivery flow; they are intentionally unavailable to MCP.
 
 ### Public database access
 
@@ -200,8 +200,8 @@ kanban board (status: backlog|todo|doing|review|done, priority, labels, due date
 
 1. `abrclick_create_bucket` `{ project_id, name, sizeGb, isPublic?, objectLockEnabled? }` —
    `sizeGb` is a fixed step (10GB free); `name` is 3–63 lowercase alphanumerics/hyphens.
-2. `abrclick_get_bucket_credentials` `{ bucket_id }` → S3 endpoint + access/secret key
-   (**secret** — don't echo). `abrclick_rotate_bucket_credentials` invalidates the old key.
+2. Retrieve or rotate S3 credentials only through the Abrclick Console or CLI's secure
+   delivery flow; they are intentionally unavailable to MCP.
 3. Objects: `abrclick_list_bucket_objects` `{ bucket_id, prefix?, delimiter?, token? }`,
    `abrclick_get_bucket_object_download_url` `{ bucket_id, key }`,
    `abrclick_delete_bucket_object` `{ bucket_id, key }` (destructive),
@@ -214,8 +214,8 @@ kanban board (status: backlog|todo|doing|review|done, priority, labels, due date
 ### Container registry
 
 1. `abrclick_create_registry` `{ project_id, name, sizeGb, isPublic? }` (1GB free).
-2. `abrclick_get_registry_credentials` `{ registry_id }` → docker-login user/password
-   (**secret**). `abrclick_rotate_registry_credentials` invalidates the old password.
+2. Retrieve or rotate registry credentials only through the Abrclick Console or CLI's
+   secure delivery flow; they are intentionally unavailable to MCP.
 3. `abrclick_list_registry_repositories` `{ registry_id }` lists images/tags. Pushing an
    image is a `docker push` the user runs after `docker login` — not an MCP call.
 4. Then deploy an image from it: `abrclick_deploy_app { app_id, source_type: "image",
@@ -277,10 +277,9 @@ App-level env (`abrclick_set_env`) wins on key conflicts. Still needs a redeploy
 
 ### API keys
 
-`abrclick_create_api_key` `{ name, scopes?, expiresAt? }` mints a key — the plaintext is
-returned **once**, so surface it to the user immediately and tell them to store it. Prefer
-**narrow scopes** (`deploy`, `db`, `registry`) over `admin`. `list_api_keys` shows metadata
-only; `revoke_api_key` `{ key_id }` is **DESTRUCTIVE** (the key stops working instantly).
+Create API keys only through the Abrclick Console or CLI's secure delivery flow; plaintext
+keys are intentionally unavailable to MCP. `list_api_keys` shows metadata only;
+`revoke_api_key` `{ key_id }` is **DESTRUCTIVE** (the key stops working instantly).
 Minting/revoking requires an `admin` key or a full login session, not a narrow CI key.
 
 ## Safety
@@ -300,8 +299,6 @@ call, state exactly what will be affected and **confirm with the user first**:
 - `abrclick_disable_db_public_access` — breaks anything connecting over the public
   endpoint.
 - `abrclick_revoke_api_key` — the key stops working immediately; anything using it breaks.
-- `abrclick_rotate_bucket_credentials` / `abrclick_rotate_registry_credentials` — old
-  keys/passwords stop working immediately.
 - `abrclick_promote_app { to: "production" }` — needs `confirm_production: true`.
 - Attaching/detaching a disk or a secret **redeploys the app** — say so before doing it.
 
@@ -310,7 +307,6 @@ call, state exactly what will be affected and **confirm with the user first**:
 plan, buy an add-on, or top up the wallet, **send the user to the dashboard** — those
 money moves are intentionally not exposed to AI.
 
-**Never echo secrets** (`get_database_credentials`, `get_bucket_credentials`,
-`get_registry_credentials`, `create_api_key` output, `upload_cert` key) unless the user
-explicitly asks for them. Environment secret values never return; rotate them by replacing
-the value through `set_env` (write-only).
+**Never echo secrets**. Raw database, bucket, registry, and API-key credentials are never
+available through MCP; use the Console or CLI's secure delivery flow. Environment secret
+values never return; rotate them by replacing the value through `set_env` (write-only).
