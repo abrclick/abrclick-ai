@@ -29,7 +29,7 @@ client the same way.
 You describe what you want — "deploy this Next.js repo and give it a Postgres" — and your
 AI does it end to end: creates the project, the app, wires the git repo, provisions the
 database, links them, kicks off the build, tails the logs, and hands you the live URL.
-**172 tools** cover the whole platform.
+**166 tools** cover the whole platform.
 
 ## Prerequisites
 
@@ -163,7 +163,7 @@ No interactive login available? Set an API key in the server's environment inste
 
 ## Tools
 
-**172 tools**, all `abrclick_`-prefixed, grouped by resource:
+**166 tools**, all `abrclick_`-prefixed, grouped by resource:
 
 ### Identity & regions
 
@@ -209,7 +209,7 @@ No interactive login available? Set an API key in the server's environment inste
 ### Databases
 
 `list_databases`, `get_database_versions`, `create_database`, `get_database`,
-`update_database`, `get_database_credentials`, `delete_database`,
+`update_database`, `delete_database`,
 `enable_db_public_access`, `disable_db_public_access`, `get_database_logs`
 
 ### Backups
@@ -251,7 +251,7 @@ No interactive login available? Set an API key in the server's environment inste
 ### Object storage (S3 buckets)
 
 `list_all_buckets`, `list_buckets`, `create_bucket`, `get_bucket`, `update_bucket`,
-`get_bucket_credentials`, `rotate_bucket_credentials`, `delete_bucket`,
+`delete_bucket`,
 `list_bucket_objects`, `get_bucket_object_download_url`, `delete_bucket_object`,
 `create_bucket_folder`, `get_bucket_cors`, `put_bucket_cors`, `delete_bucket_cors`,
 `get_bucket_versioning`, `put_bucket_versioning`, `get_bucket_lifecycle`,
@@ -260,8 +260,7 @@ No interactive login available? Set an API key in the server's environment inste
 ### Container registry
 
 `list_all_registries`, `list_registries`, `create_registry`, `get_registry`,
-`update_registry`, `get_registry_credentials`, `rotate_registry_credentials`,
-`list_registry_repositories`, `delete_registry`
+`update_registry`, `list_registry_repositories`, `delete_registry`
 
 ### Serverless functions
 
@@ -295,7 +294,7 @@ No interactive login available? Set an API key in the server's environment inste
 
 ### API keys
 
-`list_api_keys`, `create_api_key`, `revoke_api_key`
+`list_api_keys`, `revoke_api_key`
 
 ## Bundled skill
 
@@ -316,26 +315,27 @@ foot-guns:
 - **Sign-in is not exposed.** No login, register, password change, or device-code flow —
   your `abrclick login` session (or an API key) already establishes identity. GitHub
   **repo access** (for deploys) is exposed; GitHub/Google **sign-in** is not.
-- **API-key management is exposed but scoped.** `create_api_key` / `revoke_api_key` /
-  `list_api_keys` work, but the underlying route requires an `admin`-scoped key or a full
-  login session — a narrow CI key (e.g. `deploy`) can't mint or revoke keys, so a leaked
-  deploy key can't escalate. `create_api_key` returns the plaintext key **once**; the skill
-  tells the AI to prefer narrow scopes over `admin`.
-- **Destructive calls are marked.** Tool descriptions flag DESTRUCTIVE operations
+- **API-key metadata and revocation are exposed.** `list_api_keys` and `revoke_api_key`
+  require an `admin`-scoped key or a full login session. Creating a key returns a plaintext
+  credential, so it is intentionally unavailable through MCP; use the Console or CLI.
+- **Mutating and unreviewed calls require confirmation.** The server asks through MCP form
+  elicitation before executing them. If the client does not support form elicitation, the
+  call fails closed without invoking the Abrclick API. Tool descriptions also flag
+  DESTRUCTIVE operations
   (`delete_project`, `delete_app`, `delete_database`, `delete_bucket`, `delete_registry`,
   `delete_function`, `delete_disk`, `delete_backup`, `delete_dns_zone`, `delete_dns_record`,
   `restore_backup`, `restore_disk_backup`, `disable_db_public_access`, `revoke_api_key`, …).
-  The bundled skill tells the AI to confirm with you first. **Nothing here prompts on its
-  own** — enforce confirmations via your MCP client's approval settings for real safety.
+  Low-risk reviewed reads run without this extra prompt; client approval settings may add
+  another confirmation layer.
 - **Tarball / interactive ops need the CLI.** `deploy_app` supports `git` and `image`
   fully; `source_type: "upload"` deploys a tarball your AI can't stream — run
   `abrclick deploy` for local-folder deploys. Likewise an **interactive shell / one-off
   exec** into a running container is a streaming WebSocket, not a request/response tool —
   use `abrclick shell` / `abrclick run`.
-- **Credentials are secret.** `get_database_credentials`, `get_bucket_credentials`, and
-  `get_registry_credentials` return live secrets. Environment secret values never return;
-  rotate them by replacing values with `set_env` (write-only). The skill instructs the AI
-  not to echo returned credentials unless you ask.
+- **Credentials stay out of MCP.** Retrieving or rotating database, bucket, and registry
+  credentials and creating API keys are intentionally unavailable; use the Console or CLI.
+  Environment secret values never return; rotate them by replacing values with `set_env`
+  (write-only).
 
 ## Development
 
@@ -343,6 +343,7 @@ foot-guns:
 npm install        # pulls @abrclick/sdk from the registry
 npm run type-check # tsc --noEmit
 npm run build      # tsc → dist/
+npm test           # build + security regression tests
 npm start          # runs dist/index.js (uses your `abrclick login` session)
 ```
 
