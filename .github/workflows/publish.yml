@@ -1,7 +1,7 @@
 name: Publish
 
 # Publishes @abrclick/ai to the public npm registry when a v* tag is pushed.
-# Gate: typecheck + build + tag-matches-version must pass before publish runs.
+# Gate: typecheck + tests + tag-matches-version must pass before publish runs.
 # Requires repo secret NPM_TOKEN (an npm automation token with publish rights).
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           fi
 
       - run: npm run type-check
-      - run: npm run build
+      - run: npm test
 
       # No --provenance: repo is private, and npm provenance requires a public
       # repo (it writes a public Sigstore attestation referencing repo+commit).
